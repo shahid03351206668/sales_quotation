@@ -1,0 +1,98 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-02-18 18:14:39.951990",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "monthly_price_list",
+  "yearly_price_list",
+  "elite_item",
+  "base_item",
+  "column_break_tval",
+  "core_terminal_price",
+  "core_terminal_price_yearly",
+  "base_pos_terminals",
+  "elite_pos_terminals"
+ ],
+ "fields": [
+  {
+   "fieldname": "monthly_price_list",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Monthly Price List",
+   "options": "Price List",
+   "reqd": 1
+  },
+  {
+   "fieldname": "yearly_price_list",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Yearly Price List",
+   "options": "Price List",
+   "reqd": 1
+  },
+  {
+   "fieldname": "elite_item",
+   "fieldtype": "Link",
+   "label": "Elite Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "base_item",
+   "fieldtype": "Link",
+   "label": "Base Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "column_break_tval",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "core_terminal_price",
+   "fieldtype": "Currency",
+   "label": "Core Terminal Price Monthly"
+  },
+  {
+   "fieldname": "base_pos_terminals",
+   "fieldtype": "Int",
+   "label": "Base POS Terminals"
+  },
+  {
+   "fieldname": "elite_pos_terminals",
+   "fieldtype": "Int",
+   "label": "Elite POS Terminals"
+  },
+  {
+   "fieldname": "core_terminal_price_yearly",
+   "fieldtype": "Currency",
+   "label": "Core Terminal Price Yearly"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-02-23 15:21:57.800579",
+ "modified_by": "Administrator",
+ "module": "Sales Quotation",
+ "name": "Sales Offer Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
