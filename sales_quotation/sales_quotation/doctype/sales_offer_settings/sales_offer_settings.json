@@ -10,8 +10,12 @@
   "elite_item",
   "base_item",
   "column_break_tval",
-  "core_terminal_price",
-  "core_terminal_price_yearly",
+  "pms_core_monthly_price",
+  "pms_core_annual_price",
+  "staypro_core_monthly_price",
+  "staypro_core_annual_price",
+  "dinepro_core_monthly_price",
+  "dinepro_core_annual_price",
   "base_pos_terminals",
   "elite_pos_terminals"
  ],
@@ -49,11 +53,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "core_terminal_price",
-   "fieldtype": "Currency",
-   "label": "Core Terminal Price Monthly"
-  },
-  {
    "fieldname": "base_pos_terminals",
    "fieldtype": "Int",
    "label": "Base POS Terminals"
@@ -64,16 +63,43 @@
    "label": "Elite POS Terminals"
   },
   {
-   "fieldname": "core_terminal_price_yearly",
+   "fieldname": "pms_core_monthly_price",
    "fieldtype": "Currency",
-   "label": "Core Terminal Price Yearly"
+   "hidden": 1,
+   "label": "PMS Core Monthly Price"
+  },
+  {
+   "fieldname": "pms_core_annual_price",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "PMS Core Annual Price"
+  },
+  {
+   "fieldname": "dinepro_core_monthly_price",
+   "fieldtype": "Currency",
+   "label": "DinePro Core Monthly Price"
+  },
+  {
+   "fieldname": "dinepro_core_annual_price",
+   "fieldtype": "Currency",
+   "label": "DinePro Core Annual Price"
+  },
+  {
+   "fieldname": "staypro_core_monthly_price",
+   "fieldtype": "Currency",
+   "label": "StayPro Core Monthly Price"
+  },
+  {
+   "fieldname": "staypro_core_annual_price",
+   "fieldtype": "Currency",
+   "label": "StayPro Core Annual Price"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-02-23 15:21:57.800579",
+ "modified": "2026-03-11 17:16:10.364984",
  "modified_by": "Administrator",
  "module": "Sales Quotation",
  "name": "Sales Offer Settings",

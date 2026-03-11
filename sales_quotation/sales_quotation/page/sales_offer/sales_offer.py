@@ -1,23 +1,23 @@
 import frappe
 @frappe.whitelist()
-def get_plan_items(plan_level=None,vertical=None):
+def get_plan_items(vertical=None):
 
     items = frappe.db.sql("""
         SELECT
             name,
             item_name,
             item_group,
+            custom_plan_level,
             custom_monthly_minimum_usd,
             custom_annual_minimum_usd,
             custom_dependent_modules
         FROM `tabItem`
         WHERE
-            custom_plan_level = %s
-            AND custom_vertical = %s
+            custom_vertical = %s
             AND disabled = 0
             AND item_group != %s
         ORDER BY item_group ASC, item_name ASC
-    """, (plan_level, vertical, "Core Product"), as_dict=True)
+    """, (vertical, "Core Product"), as_dict=True)
 
     # Attach Item Prices
     for item in items:
@@ -73,10 +73,21 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
     if not price_list:
         frappe.throw(f"No {'yearly' if billing == 'annual' else 'monthly'} price list configured in Sales Offer Settings.")
 
-    # ── Core terminal price ───────────────────────────────────────
+    # ── Core terminal price (vertical-specific) ───────────────────
+    if vertical == "DinePro":
+        core_unit_price_monthly = flt(settings.dinepro_core_monthly_price)
+        core_unit_price_annual  = flt(settings.dinepro_core_annual_price)
+    else:  # StayPro
+        core_unit_price_monthly = flt(settings.staypro_core_monthly_price)
+        core_unit_price_annual  = flt(settings.staypro_core_annual_price)
+
     free_terminals     = settings.elite_pos_terminals if plan == "elite" else settings.base_pos_terminals
     billable_terminals = max(0, terminals - flt(free_terminals))
-    core_terminal_rate = flt(settings.core_terminal_price) * billable_terminals if billing == "monthly" else flt(settings.core_terminal_price_yearly) * billable_terminals
+
+    if billing == "annual":
+        core_terminal_rate = core_unit_price_annual * billable_terminals
+    else:
+        core_terminal_rate = core_unit_price_monthly * billable_terminals
 
     fx = flt(fx_rate) or 1.0
 
@@ -122,10 +133,10 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
     frappe.log_error(f"Calculated values - Terminals + Items: {first_value}, Highest Item Minimum: {second_value}, Plan Minimum: {third_value}. Final Rate (USD): {final_rate_usd}")
     chosen = max(enumerate([first_value, second_value, third_value]), key=lambda x: x[1])
     reasons = [
-    f"Sum of terminals + all items ({flt(first_value):,.2f} USD)",
-    f"Highest single item minimum ({flt(second_value):,.2f} USD)",
-    f"Plan minimum commitment ({flt(third_value):,.2f} USD)",
-]
+        f"Sum of terminals + all items ({flt(first_value):,.2f} USD)",
+        f"Highest single item minimum ({flt(second_value):,.2f} USD)",
+        f"Plan minimum commitment ({flt(third_value):,.2f} USD)",
+    ]
     price_reason = f"Rate based on: {reasons[chosen[0]]}"
 
     doc = frappe.new_doc("Quotation")
@@ -134,7 +145,9 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
     doc.transaction_date = frappe.utils.today()
     doc.order_type       = "Sales"
     doc.currency         = currency
+    doc.conversion_rate  = flt(fx_rate) if currency != "USD" else 1.0
     doc.company          = doc.company = frappe.get_single("Global Defaults").default_company
+    # doc.company          = "test"
 
     # ── Row 1: Plan item with the final calculated rate ───────────
     doc.append("items", {
@@ -154,12 +167,19 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
         doc.append("items", {
             "item_code":         item_code,
             "qty":               1,
+            "rate":              0,
+            "amount":            0,
+            "discount_percentage": 100,
         })
 
     doc.insert()
     doc.submit()
 
     return doc.name
+
+
+
+
 @frappe.whitelist()
 def calculate_total(item_names, billing):
     item_names = frappe.parse_json(item_names)
@@ -189,4 +209,3 @@ def calculate_total(item_names, billing):
             total_rate += custom_rate
 
     return total_rate
-    

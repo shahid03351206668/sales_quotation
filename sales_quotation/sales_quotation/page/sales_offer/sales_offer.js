@@ -28,7 +28,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		.terminal-info { margin-top: 1rem; color: #374151; }
 		.terminal-info > div { font-size: 1rem; margin-bottom: 0.25rem; }
 		.terminal-info .highlight { font-weight: 600; }
-		.total-price { text-align: center; font-size: 1.875rem; font-weight: 800; color: #16a34a; margin-bottom: 1.5rem; }
+		.total-price { text-align: center; font-size: 1.875rem; font-weight: 800; color: #16a34a; margin-bottom: 0.25rem; }
 		.notes-list { list-style: disc; padding-left: 1.5rem; color: #374151; }
 		.notes-list li { margin-bottom: 0.5rem; }
 		@media (max-width: 640px) {
@@ -42,8 +42,10 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 	// ─── SETTINGS ─────────────────────────────────────────────────
 
 	let offerSettings = {
-		core_terminal_price: 0,
-		core_terminal_price_yearly: 0,
+		dinepro_core_monthly_price: 0,
+		dinepro_core_annual_price: 0,
+		staypro_core_monthly_price: 0,
+		staypro_core_annual_price: 0,
 		base_pos_terminals: 0,
 		elite_pos_terminals: 0,
 	};
@@ -52,11 +54,44 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 
 	const money = (v) => {
 		const currency = document.getElementById("currency").value;
-		const fx = parseFloat(document.getElementById("fx").value) || 1;
+		const fx = window._fxRate || 1;
 		return currency === "AZN" ? v * fx : v;
 	};
 
 	const fmt = (v) => (Math.round(v * 100) / 100).toFixed(2);
+
+	// ─── FETCH EXCHANGE RATE FROM Currency Exchange DOCTYPE ────────
+	const fetchExchangeRate = (callback) => {
+    const fromCurrency = "USD";
+    const toCurrency = "AZN";
+
+		frappe.call({
+			method: "frappe.client.get_list",
+			args: {
+				doctype: "Currency Exchange",
+				filters: [
+					["from_currency", "=", fromCurrency],
+					["to_currency", "=", toCurrency],
+				],
+				fields: ["exchange_rate"],
+				order_by: "date desc",
+				limit: 1,
+			},
+			callback: function (r) {
+				const rate = r.message && r.message.length > 0
+					? parseFloat(r.message[0].exchange_rate)
+					: 1.0;
+				document.getElementById("fx-display").innerText = rate.toFixed(4);
+				window._fxRate = rate;
+				if (callback) callback();
+			},
+			error: function () {
+				window._fxRate = 1.0;
+				document.getElementById("fx-display").innerText = "1.0000";
+				if (callback) callback();
+			},
+		});
+	};
 
 	const getCheckedItemNames = () => {
 		const names = [];
@@ -66,39 +101,85 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		return names;
 	};
 
+	// ─── Auto-detect plan based on checked items ──────────────────
+	const getDetectedPlan = () => {
+		const hasElite = [...document.querySelectorAll(".addonCheck")]
+			.some(ch => ch.checked && ch.dataset.plan === "elite");
+		return hasElite ? "elite" : "base";
+	};
+
+	// ─── Returns the correct unit price based on vertical + billing ───
+	const getCoreUnitPrice = () => {
+		const vertical = document.getElementById("vertical").value;
+		const billing = document.getElementById("billing").value;
+		if (vertical === "DinePro") {
+			return billing === "annual"
+				? offerSettings.dinepro_core_annual_price
+				: offerSettings.dinepro_core_monthly_price;
+		} else {
+			return billing === "annual"
+				? offerSettings.staypro_core_annual_price
+				: offerSettings.staypro_core_monthly_price;
+		}
+	};
+
+	// ─── Updates the Core card heading and terminal question label ───
+	const updateCoreLabels = () => {
+		const vertical = document.getElementById("vertical").value;
+		const isDinePro = vertical === "DinePro";
+		document.getElementById("vertical-title").textContent = "." + vertical;
+		document.getElementById("core-card-title").textContent = isDinePro
+			? "Core (POS Terminals)"
+			: "Core (Rooms)";
+		document.getElementById("terminals-question").textContent = isDinePro
+			? "How many POS terminals do you need?"
+			: "How many rooms do you need?";
+		document.getElementById("included-label").textContent = isDinePro
+			? "Included (depends on plan & billing):"
+			: "Included rooms (depends on plan & billing):";
+		document.getElementById("billable-label").textContent = isDinePro
+			? "Additional terminals billed:"
+			: "Additional rooms billed:";
+	};
+
 	const updatePrices = () => {
-		const billing   = document.getElementById("billing").value;
-		const currency  = document.getElementById("currency").value;
-		const plan      = document.getElementById("plan").value;
+		const billing = document.getElementById("billing").value;
+		const currency = document.getElementById("currency").value;
+		const plan = getDetectedPlan();
 		const terminals = Math.max(1, parseInt(document.getElementById("terminals").value || 1));
 
-		// How many terminals are free for this plan
-		const freeTerminals = plan === "elite"
-			? offerSettings.elite_pos_terminals
-			: offerSettings.base_pos_terminals;
+		// ── Update plan badge ──────────────────────────────────────
+		const planBadge = document.getElementById("plan-display");
+		if (planBadge) {
+			if (plan === "elite") {
+				planBadge.textContent = "Elite";
+				planBadge.style.background = "#7c3aed";
+			} else {
+				planBadge.textContent = "Base";
+				planBadge.style.background = "#2563eb";
+			}
+		}
 
-		// Billable terminals (never negative)
+		const freeTerminals =
+			plan === "elite"
+				? offerSettings.elite_pos_terminals
+				: offerSettings.base_pos_terminals;
+
 		const billable = Math.max(0, terminals - freeTerminals);
+		const terminalUnitPrice = getCoreUnitPrice();
 
-		// Pick unit price based on billing period
-		const terminalUnitPrice = billing === "annual"
-			? offerSettings.core_terminal_price_yearly
-			: offerSettings.core_terminal_price;
-
-		// Dynamic billing period label
 		const billingLabel = billing === "annual" ? "year" : "month";
-		document.getElementById("billing-period-core").innerText  = billingLabel;
+		document.getElementById("billing-period-core").innerText = billingLabel;
 		document.getElementById("billing-period-total").innerText = billingLabel;
 
-		// Core price in USD, then converted
-		const corePriceUsd     = billable * terminalUnitPrice;
+		const corePriceUsd = billable * terminalUnitPrice;
 		const corePriceDisplay = money(corePriceUsd);
 
-		document.getElementById("cur1").innerText              = currency;
-		document.getElementById("cur2").innerText              = currency;
+		document.getElementById("cur1").innerText = currency;
+		document.getElementById("cur2").innerText = currency;
 		document.getElementById("includedTerminals").innerText = Math.min(terminals, freeTerminals);
 		document.getElementById("billableTerminals").innerText = billable;
-		document.getElementById("corePrice").innerText         = fmt(corePriceDisplay);
+		document.getElementById("corePrice").innerText = fmt(corePriceDisplay);
 
 		const checkedItemNames = getCheckedItemNames();
 
@@ -108,12 +189,10 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		}
 
 		if (checkedItemNames.length === 0) {
-			// Only core cost, no add-ons selected
 			document.getElementById("totalPrice").innerText = fmt(corePriceDisplay);
 			return;
 		}
 
-		// Fetch add-on total from backend, then add core on top
 		frappe.call({
 			method: "sales_quotation.sales_quotation.page.sales_offer.sales_offer.calculate_total",
 			args: {
@@ -121,8 +200,8 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 				billing: billing,
 			},
 			callback: function (r) {
-				const addonUsd   = r.message || 0;
-				const grandTotal = money(addonUsd) + corePriceDisplay;
+				const addonUsd = r.message || 0;
+				const grandTotal = money(addonUsd + corePriceUsd);
 				document.getElementById("totalPrice").innerText = fmt(grandTotal);
 			},
 		});
@@ -130,7 +209,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 
 	const syncTerminals = (val) => {
 		const n = Math.max(1, Math.min(100, parseInt(val || 1)));
-		document.getElementById("terminals").value      = n;
+		document.getElementById("terminals").value = n;
 		document.getElementById("terminalsInput").value = n;
 		updatePrices();
 	};
@@ -139,7 +218,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 
 	const handleDependencies = (changedCheckbox) => {
 		const allCheckboxes = [...document.querySelectorAll(".addonCheck")];
-		const itemName  = changedCheckbox.value;
+		const itemName = changedCheckbox.value;
 		const isChecked = changedCheckbox.checked;
 
 		if (isChecked) {
@@ -169,20 +248,21 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 	// ─── BUILD ADDONS UI ──────────────────────────────────────────
 
 	const buildAddonsUI = () => {
-		const plan      = document.getElementById("plan").value;
 		const container = document.getElementById("modules-container");
-		const vertical  = document.getElementById("vertical").value;
+		const vertical = document.getElementById("vertical").value;
+
+		updateCoreLabels();
 
 		container.innerHTML = `<p class="text-muted">Loading...</p>`;
 
 		frappe.call({
 			method: "sales_quotation.sales_quotation.page.sales_offer.sales_offer.get_plan_items",
-			args: { plan_level: plan, vertical: vertical },
+			args: { vertical: vertical },
 			callback: function (r) {
 				container.innerHTML = "";
 
 				if (!r.message || Object.keys(r.message).length === 0) {
-					container.innerHTML = `<p class="text-muted">No items found for this plan.</p>`;
+					container.innerHTML = `<p class="text-muted">No items found for this vertical.</p>`;
 					return;
 				}
 
@@ -220,19 +300,44 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 							cursor: pointer;
 							margin: 0;
 							width: 100%;
+							position: relative;
 						`;
 
+						// ── Plan badge ─────────────────────────────────────────
+						const planLevel = (item.custom_plan_level || "base").toLowerCase();
+						const badge = document.createElement("span");
+						badge.textContent = planLevel === "elite" ? "Elite" : "Base";
+						badge.style.cssText = `
+							position: absolute;
+							top: 8px;
+							right: 10px;
+							font-size: 10px;
+							font-weight: 700;
+							padding: 2px 7px;
+							border-radius: 20px;
+							text-transform: uppercase;
+							letter-spacing: 0.05em;
+							background: ${planLevel === "elite" ? "#7c3aed" : "#2563eb"};
+							color: #fff;
+						`;
+						// card.appendChild(badge);
+
 						const checkbox = document.createElement("input");
-						checkbox.type      = "checkbox";
+						checkbox.type = "checkbox";
 						checkbox.className = "addonCheck";
-						checkbox.value     = item.name;
+						checkbox.value = item.name;
 						checkbox.dataset.monthly = item.custom_monthly_minimum_usd || 0;
-						checkbox.dataset.annual  = item.custom_annual_minimum_usd  || 0;
-						checkbox.dataset.deps    = item.custom_dependent_modules   || "";
+						checkbox.dataset.annual = item.custom_annual_minimum_usd || 0;
+						checkbox.dataset.deps = item.custom_dependent_modules || "";
+						checkbox.dataset.plan = planLevel;
 						checkbox.style.marginTop = "3px";
+						checkbox.style.flexShrink = "0";
+						checkbox.style.width = "16px";
+						checkbox.style.height = "16px";
 						checkbox.addEventListener("change", () => handleDependencies(checkbox));
 
 						const details = document.createElement("div");
+						details.style.paddingRight = "48px";
 
 						const title = document.createElement("div");
 						title.style.fontWeight = "600";
@@ -249,7 +354,9 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 						);
 						if (item.item_prices && item.item_prices.length > 0) {
 							item.item_prices.forEach((p) => {
-								parts.push(`${p.price_list}: ${parseFloat(p.price_list_rate).toFixed(2)} USD`);
+								parts.push(
+									`${p.price_list}: ${parseFloat(p.price_list_rate).toFixed(2)} USD`,
+								);
 							});
 						}
 						if (item.custom_monthly_minimum_usd && item.custom_annual_minimum_usd) {
@@ -287,7 +394,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		<div class="pricing-calculator-wrapper">
 			<div class="pricing-container">
 				<h1 class="pricing-title">
-					nextech <span class="brand-text">.DinePro</span> Pricing Calculator
+					nextech <span class="brand-text" id="vertical-title">.DinePro</span> Pricing Calculator
 				</h1>
 				<p class="pricing-subtitle">
 					Calculator is generated from the provided XLSX pricing matrix.
@@ -295,24 +402,10 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 
 				<div class="pricing-controls">
 					<label>
-						Billing:
-						<select id="billing">
-							<option value="monthly">Monthly</option>
-							<option value="annual">Annual (billed annually)</option>
-						</select>
-					</label>
-					<label>
-						Plan:
-						<select id="plan">
-							<option value="base">Base</option>
-							<option value="elite">Elite</option>
-						</select>
-					</label>
-					<label>
 						Vertical:
 						<select id="vertical">
-							<option value="PMS">PMS</option>
 							<option value="DinePro">DinePro</option>
+							<option value="StayPro">StayPro</option>
 						</select>
 					</label>
 					<label>
@@ -323,14 +416,13 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 						</select>
 					</label>
 					<label>
-						USD→AZN rate:
-						<input id="fx" type="number" step="0.01" value="1.70" />
+						USD→AZN Rate: <span id="fx-display" style="font-weight:600; margin-left:0.5rem;">—</span>
 					</label>
 				</div>
 
 				<div class="pricing-card">
-					<h2 class="card-title">Core (Terminals)</h2>
-					<label for="terminals" style="display: block; font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">
+					<h2 class="card-title" id="core-card-title">Core (POS Terminals)</h2>
+					<label for="terminals" id="terminals-question" style="display: block; font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">
 						How many POS terminals do you need?
 					</label>
 					<div class="terminal-controls">
@@ -338,14 +430,17 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 						<input type="number" id="terminalsInput" min="1" max="100" value="3" step="1" />
 					</div>
 					<div class="terminal-info">
-						<div>Included (depends on plan & billing): <span id="includedTerminals" class="highlight"></span></div>
-						<div>Additional terminals billed: <span id="billableTerminals" class="highlight"></span></div>
+						<div><span id="included-label">Included (depends on plan &amp; billing):</span> <span id="includedTerminals" class="highlight"></span></div>
+						<div><span id="billable-label">Additional terminals billed:</span> <span id="billableTerminals" class="highlight"></span></div>
 						<div style="margin-top: 0.5rem;">Core price: <span id="corePrice" class="highlight"></span> <span id="cur1">USD</span> / <span id="billing-period-core">month</span></div>
 					</div>
 				</div>
 
 				<p class="total-price">
 					Total: <span id="totalPrice">0</span> <span id="cur2">USD</span> / <span id="billing-period-total">month</span>
+				</p>
+				<p style="text-align:center; margin-top:1rem; margin-bottom:1.5rem; font-size:1rem; font-weight:600;">
+					Plan: <span id="plan-display" style="padding: 2px 10px; border-radius: 20px; color:#fff; background:#2563eb;">Base</span>
 				</p>
 
 				<div class="pricing-card" style="margin-bottom: 1.5rem;">
@@ -354,9 +449,22 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 							<div id="customer-field-wrapper"></div>
 						</div>
 						<div class="col-md-6" style="display: flex; align-items: flex-start; justify-content: end;">
-							<button id="submit-quotation-btn" class="btn btn-primary" style="width: 30%;">
-								Submit Quotation
-							</button>
+							<div>
+								<div class="pricing-controls">
+									<label>
+										Billing:
+										<select id="billing">
+											<option value="monthly">Monthly</option>
+											<option value="annual">Annual (billed annually)</option>
+										</select>
+									</label>
+								</div>
+								<div style="width:100%;display:flex;justify-content:end;">
+									<button id="submit-quotation-btn" class="btn btn-primary" style="width: 70%;">
+										Submit Quotation
+									</button>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -384,13 +492,20 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 
 	// ─── ATTACH EVENTS ────────────────────────────────────────────
 
-	document.getElementById("plan").addEventListener("change", () => { buildAddonsUI(); updatePrices(); });
-	document.getElementById("vertical").addEventListener("change", () => { buildAddonsUI(); updatePrices(); });
+	document.getElementById("vertical").addEventListener("change", () => {
+		buildAddonsUI();
+		updatePrices();
+	});
 	document.getElementById("billing").addEventListener("change", updatePrices);
-	document.getElementById("currency").addEventListener("change", updatePrices);
-	document.getElementById("fx").addEventListener("input", updatePrices);
-	document.getElementById("terminals").addEventListener("input", (e) => syncTerminals(e.target.value));
-	document.getElementById("terminalsInput").addEventListener("input", (e) => syncTerminals(e.target.value));
+	document.getElementById("currency").addEventListener("change", () => {
+		fetchExchangeRate(updatePrices);
+	});
+	document
+		.getElementById("terminals")
+		.addEventListener("input", (e) => syncTerminals(e.target.value));
+	document
+		.getElementById("terminalsInput")
+		.addEventListener("input", (e) => syncTerminals(e.target.value));
 
 	document.getElementById("submit-quotation-btn").addEventListener("click", () => {
 		const customer = customerField.get_value();
@@ -400,13 +515,13 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 			return;
 		}
 
-		const billing          = document.getElementById("billing").value;
-		const plan             = document.getElementById("plan").value;
+		const billing = document.getElementById("billing").value;
+		const plan = getDetectedPlan();
 		const checkedItemNames = getCheckedItemNames();
-		const fx_rate          = parseFloat(document.getElementById("fx").value) || 1;
-		const currency         = document.getElementById("currency").value;
-		const vertical         = document.getElementById("vertical").value;
-		const terminals        = parseInt(document.getElementById("terminals").value) || 1;
+		const fx_rate = window._fxRate || 1;
+		const currency = document.getElementById("currency").value;
+		const vertical = document.getElementById("vertical").value;
+		const terminals = parseInt(document.getElementById("terminals").value) || 1;
 
 		if (checkedItemNames.length === 0) {
 			frappe.msgprint("Please select at least one item.");
@@ -416,14 +531,14 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		frappe.call({
 			method: "sales_quotation.sales_quotation.page.sales_offer.sales_offer.create_quotation",
 			args: {
-				fx_rate:    fx_rate,
-				currency:   currency,
-				vertical:   vertical,
-				plan:       plan,
-				customer:   customer,
+				fx_rate: fx_rate,
+				currency: currency,
+				vertical: vertical,
+				plan: plan,
+				customer: customer,
 				item_names: JSON.stringify(checkedItemNames),
-				billing:    billing,
-				terminals:  terminals,
+				billing: billing,
+				terminals: terminals,
 			},
 			callback: function (r) {
 				if (r.message) {
@@ -441,7 +556,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		});
 	});
 
-	// ─── INIT (load settings first, then build UI) ────────────────
+	// ─── INIT (load settings → fetch rate → build UI) ─────────────
 
 	frappe.call({
 		method: "frappe.client.get",
@@ -451,18 +566,28 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		},
 		callback: function (r) {
 			if (r.message) {
-				offerSettings.core_terminal_price        = parseFloat(r.message.core_terminal_price)        || 0;
-				offerSettings.core_terminal_price_yearly = parseFloat(r.message.core_terminal_price_yearly) || 0;
-				offerSettings.base_pos_terminals         = parseInt(r.message.base_pos_terminals)           || 0;
-				offerSettings.elite_pos_terminals        = parseInt(r.message.elite_pos_terminals)          || 0;
+				offerSettings.dinepro_core_monthly_price =
+					parseFloat(r.message.dinepro_core_monthly_price) || 0;
+				offerSettings.dinepro_core_annual_price =
+					parseFloat(r.message.dinepro_core_annual_price) || 0;
+				offerSettings.staypro_core_monthly_price =
+					parseFloat(r.message.staypro_core_monthly_price) || 0;
+				offerSettings.staypro_core_annual_price =
+					parseFloat(r.message.staypro_core_annual_price) || 0;
+				offerSettings.base_pos_terminals = parseInt(r.message.base_pos_terminals) || 0;
+				offerSettings.elite_pos_terminals = parseInt(r.message.elite_pos_terminals) || 0;
 			}
-			buildAddonsUI();
-			syncTerminals(3);
+			fetchExchangeRate(() => {
+				buildAddonsUI();
+				syncTerminals(3);
+			});
 		},
 		error: function (err) {
 			console.error("Failed to load Sales Offer Settings:", err);
-			buildAddonsUI();
-			syncTerminals(3);
+			fetchExchangeRate(() => {
+				buildAddonsUI();
+				syncTerminals(3);
+			});
 		},
 	});
 };
