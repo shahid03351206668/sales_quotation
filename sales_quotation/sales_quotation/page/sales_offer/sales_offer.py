@@ -13,11 +13,12 @@ def get_plan_items(vertical=None):
             custom_dependent_modules
         FROM `tabItem`
         WHERE
-            custom_vertical = %s
+            custom_vertical IN (%s, 'Both')
             AND disabled = 0
             AND item_group != %s
         ORDER BY item_group ASC, item_name ASC
     """, (vertical, "Core Product"), as_dict=True)
+
 
     # Attach Item Prices
     for item in items:
