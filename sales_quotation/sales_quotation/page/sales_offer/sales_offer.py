@@ -95,6 +95,19 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
     def to_currency(usd_amount):
         return usd_amount * fx if currency == "AZN" else usd_amount
 
+    # def get_item_rate(item_code):
+    #     """Get the effective rate for an item based on billing period."""
+    #     price_list_rate = flt(frappe.db.get_value(
+    #         "Item Price",
+    #         {"item_code": item_code, "price_list": price_list, "selling": 1},
+    #         "price_list_rate"
+    #     ))
+    #     if billing == "annual":
+    #         custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
+    #     else:
+    #         custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
+
+    #     return max(price_list_rate, custom_rate) if price_list_rate else custom_rate
     def get_item_rate(item_code):
         """Get the effective rate for an item based on billing period."""
         price_list_rate = flt(frappe.db.get_value(
@@ -102,12 +115,12 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
             {"item_code": item_code, "price_list": price_list, "selling": 1},
             "price_list_rate"
         ))
-        if billing == "annual":
-            custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
-        else:
-            custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
+        # if billing == "annual":
+        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
+        # else:
+        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
 
-        return max(price_list_rate, custom_rate) if price_list_rate else custom_rate
+        return price_list_rate 
 
     # ── first_value: terminals cost + sum of all selected item rates ──
     items_total = sum(get_item_rate(item_code) for item_code in item_names)
@@ -199,14 +212,16 @@ def calculate_total(item_names, billing):
             "price_list_rate"
         ))
 
-        if billing == "annual":
-            custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
-        else:
-            custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
+        # if billing == "annual":
+        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
+        # else:
+        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
 
+        # if price_list_rate:
+        #     total_rate += max(price_list_rate, custom_rate)
+        # else:
+        #     total_rate += custom_rate
         if price_list_rate:
-            total_rate += max(price_list_rate, custom_rate)
-        else:
-            total_rate += custom_rate
+            total_rate += price_list_rate
 
     return total_rate
