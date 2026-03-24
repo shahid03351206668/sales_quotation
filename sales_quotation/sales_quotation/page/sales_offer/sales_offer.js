@@ -523,10 +523,10 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		const vertical = document.getElementById("vertical").value;
 		const terminals = parseInt(document.getElementById("terminals").value) || 1;
 
-		if (checkedItemNames.length === 0) {
-			frappe.msgprint("Please select at least one item.");
-			return;
-		}
+		// if (checkedItemNames.length === 0) {
+		// 	frappe.msgprint("Please select at least one item.");
+		// 	return;
+		// }
 
 		frappe.call({
 			method: "sales_quotation.sales_quotation.page.sales_offer.sales_offer.create_quotation",
