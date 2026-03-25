@@ -160,7 +160,7 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
     doc.order_type       = "Sales"
     doc.currency         = currency
     doc.conversion_rate  = flt(fx_rate) if currency != "USD" else 1.0
-    doc.company          = doc.company = frappe.get_single("Global Defaults").default_company
+    doc.company          = doc.company = frappe.get_single("Sales Offer Settings").company
     # doc.company          = "test"
 
     # ── Row 1: Plan item with the final calculated rate ───────────
