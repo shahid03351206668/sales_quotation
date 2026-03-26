@@ -9,6 +9,7 @@
   "yearly_price_list",
   "elite_item",
   "base_item",
+  "company",
   "column_break_tval",
   "pms_core_monthly_price",
   "pms_core_annual_price",
@@ -93,14 +94,20 @@
    "fieldname": "staypro_core_annual_price",
    "fieldtype": "Currency",
    "label": "StayPro Core Annual Price"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-03-11 17:16:10.364984",
- "modified_by": "Administrator",
+ "modified": "2026-03-25 20:23:52.817532",
+ "modified_by": "saad@codessoft.com",
  "module": "Sales Quotation",
  "name": "Sales Offer Settings",
  "owner": "Administrator",
