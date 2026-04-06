@@ -380,7 +380,7 @@
   "name": "Item-custom_vertical",
   "no_copy": 0,
   "non_negative": 0,
-  "options": "\nPMS\nDinePro",
+  "options": "\nDinePro\nStayPro\nBoth",
   "permlevel": 0,
   "placeholder": null,
   "precision": "",
