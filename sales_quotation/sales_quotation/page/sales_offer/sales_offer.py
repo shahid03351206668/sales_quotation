@@ -74,7 +74,7 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
     if not price_list:
         frappe.throw(f"No {'yearly' if billing == 'annual' else 'monthly'} price list configured in Sales Offer Settings.")
 
-    # ── Core terminal price (vertical-specific) ───────────────────
+    # ── Core terminal/room price (vertical-specific) ───────────────
     if vertical == "DinePro":
         core_unit_price_monthly = flt(settings.dinepro_core_monthly_price)
         core_unit_price_annual  = flt(settings.dinepro_core_annual_price)
@@ -82,32 +82,36 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
         core_unit_price_monthly = flt(settings.staypro_core_monthly_price)
         core_unit_price_annual  = flt(settings.staypro_core_annual_price)
 
-    free_terminals     = settings.elite_pos_terminals if plan == "elite" else settings.base_pos_terminals
-    billable_terminals = max(0, terminals - flt(free_terminals))
+    # ── Get free terminals/rooms count and standard price ─────────
+    if vertical == "DinePro":
+        if plan == "elite":
+            free_count = flt(settings.elite_pos_terminals)
+            free_standard_price = flt(settings.elite_pos_terminals_price)
+        else:
+            free_count = flt(settings.base_pos_terminals)
+            free_standard_price = flt(settings.base_pos_terminals_price)
+    else:  # StayPro
+        if plan == "elite":
+            free_count = flt(settings.elite_rooms)
+            free_standard_price = flt(settings.elite_rooms_price)
+        else:
+            free_count = flt(settings.base_rooms)
+            free_standard_price = flt(settings.base_rooms_price)
 
+    # ── Calculate billable terminals/rooms ──────────────────────
+    billable_terminals = max(0, terminals - free_count)
+
+    # ── Calculate core price: free terminals + billable terminals ──
     if billing == "annual":
-        core_terminal_rate = core_unit_price_annual * billable_terminals
+        core_terminal_rate = free_standard_price + (billable_terminals * core_unit_price_annual)
     else:
-        core_terminal_rate = core_unit_price_monthly * billable_terminals
+        core_terminal_rate = free_standard_price + (billable_terminals * core_unit_price_monthly)
 
     fx = flt(fx_rate) or 1.0
 
     def to_currency(usd_amount):
         return usd_amount * fx if currency == "AZN" else usd_amount
 
-    # def get_item_rate(item_code):
-    #     """Get the effective rate for an item based on billing period."""
-    #     price_list_rate = flt(frappe.db.get_value(
-    #         "Item Price",
-    #         {"item_code": item_code, "price_list": price_list, "selling": 1},
-    #         "price_list_rate"
-    #     ))
-    #     if billing == "annual":
-    #         custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
-    #     else:
-    #         custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
-
-    #     return max(price_list_rate, custom_rate) if price_list_rate else custom_rate
     def get_item_rate(item_code):
         """Get the effective rate for an item based on billing period."""
         price_list_rate = flt(frappe.db.get_value(
@@ -115,11 +119,6 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
             {"item_code": item_code, "price_list": price_list, "selling": 1},
             "price_list_rate"
         ))
-        # if billing == "annual":
-        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
-        # else:
-        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
-
         return price_list_rate 
 
     # ── first_value: terminals cost + sum of all selected item rates ──
@@ -160,8 +159,7 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
     doc.order_type       = "Sales"
     doc.currency         = currency
     doc.conversion_rate  = flt(fx_rate) if currency != "USD" else 1.0
-    doc.company          = doc.company = frappe.get_single("Sales Offer Settings").company
-    # doc.company          = "test"
+    doc.company          = frappe.get_single("Sales Offer Settings").company
 
     # ── Row 1: Plan item with the final calculated rate ───────────
     doc.append("items", {
@@ -195,8 +193,9 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
 
 
 @frappe.whitelist()
-def calculate_total(item_names, billing):
+def calculate_total(item_names, billing, terminals, plan, vertical):
     item_names = frappe.parse_json(item_names)
+    terminals = frappe.utils.cint(terminals)
 
     settings = frappe.get_single("Sales Offer Settings")
     price_list = settings.yearly_price_list if billing == "annual" else settings.monthly_price_list
@@ -204,24 +203,80 @@ def calculate_total(item_names, billing):
     if not price_list:
         frappe.throw(f"No {'yearly' if billing == 'annual' else 'monthly'} price list configured in Sales Offer Settings.")
 
-    total_rate = 0
+    # ── Core terminal/room price (vertical-specific) ───────────────
+    if vertical == "DinePro":
+        core_unit_price_monthly = flt(settings.dinepro_core_monthly_price)
+        core_unit_price_annual  = flt(settings.dinepro_core_annual_price)
+    else:  # StayPro
+        core_unit_price_monthly = flt(settings.staypro_core_monthly_price)
+        core_unit_price_annual  = flt(settings.staypro_core_annual_price)
+
+    # ── Get free terminals/rooms count and standard price ─────────
+    if vertical == "DinePro":
+        if plan == "elite":
+            free_count = flt(settings.elite_pos_terminals)
+            free_standard_price = flt(settings.elite_pos_terminals_price)
+        else:
+            free_count = flt(settings.base_pos_terminals)
+            free_standard_price = flt(settings.base_pos_terminals_price)
+    else:  # StayPro
+        if plan == "elite":
+            free_count = flt(settings.elite_rooms)
+            free_standard_price = flt(settings.elite_rooms_price)
+        else:
+            free_count = flt(settings.base_rooms)
+            free_standard_price = flt(settings.base_rooms_price)
+
+    # ── Calculate billable terminals/rooms ──────────────────────
+    billable_terminals = max(0, terminals - free_count)
+
+    # ── Calculate core price: free terminals + billable terminals ──
+    if billing == "annual":
+        core_terminal_rate = free_standard_price + (billable_terminals * core_unit_price_annual)
+    else:
+        core_terminal_rate = free_standard_price + (billable_terminals * core_unit_price_monthly)
+
+    # ── Get plan item code ─────────────────────────────────────────
+    plan_item_code = settings.elite_item if plan == "elite" else settings.base_item
+
+    # ── Get item rates ─────────────────────────────────────────────
+    items_total = 0
     for item_code in item_names:
         price_list_rate = flt(frappe.db.get_value(
             "Item Price",
             {"item_code": item_code, "price_list": price_list, "selling": 1},
             "price_list_rate"
         ))
-
-        # if billing == "annual":
-        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
-        # else:
-        #     custom_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
-
-        # if price_list_rate:
-        #     total_rate += max(price_list_rate, custom_rate)
-        # else:
-        #     total_rate += custom_rate
         if price_list_rate:
-            total_rate += price_list_rate
+            items_total += price_list_rate
 
-    return total_rate
+    # ── first_value: terminals cost + sum of all selected item rates ──
+    first_value = core_terminal_rate + items_total
+
+    # ── second_value: highest individual item minimum among selected items ──
+    second_value = 0
+    for item_code in item_names:
+        if billing == "annual":
+            min_rate = flt(frappe.db.get_value("Item", item_code, "custom_annual_minimum_usd"))
+        else:
+            min_rate = flt(frappe.db.get_value("Item", item_code, "custom_monthly_minimum_usd"))
+        if min_rate > second_value:
+            second_value = min_rate
+
+    # ── third_value: plan item's own minimum commitment ───────────────
+    if billing == "annual":
+        third_value = flt(frappe.db.get_value("Item", plan_item_code, "custom_annual_minimum_usd"))
+    else:
+        third_value = flt(frappe.db.get_value("Item", plan_item_code, "custom_monthly_minimum_usd"))
+
+    # ── Final rate: MAX of all three values ───────────────────────
+    final_rate_usd = max(first_value, second_value, third_value)
+
+    return {
+        "total": final_rate_usd,
+        "first_value": first_value,
+        "second_value": second_value,
+        "third_value": third_value,
+        "core_price": core_terminal_rate,
+        "items_price": items_total
+    }

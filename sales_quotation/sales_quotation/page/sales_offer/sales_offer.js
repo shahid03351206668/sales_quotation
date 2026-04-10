@@ -29,6 +29,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		.terminal-info > div { font-size: 1rem; margin-bottom: 0.25rem; }
 		.terminal-info .highlight { font-weight: 600; }
 		.total-price { text-align: center; font-size: 1.875rem; font-weight: 800; color: #16a34a; margin-bottom: 0.25rem; }
+		.price-reason { text-align: center; font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem; font-style: italic; }
 		.notes-list { list-style: disc; padding-left: 1.5rem; color: #374151; }
 		.notes-list li { margin-bottom: 0.5rem; }
 		@media (max-width: 640px) {
@@ -47,7 +48,13 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		staypro_core_monthly_price: 0,
 		staypro_core_annual_price: 0,
 		base_pos_terminals: 0,
+		base_pos_terminals_price: 0,
 		elite_pos_terminals: 0,
+		elite_pos_terminals_price: 0,
+		base_rooms: 0,
+		base_rooms_price: 0,
+		elite_rooms: 0,
+		elite_rooms_price: 0,
 	};
 
 	// ─── FUNCTIONS ────────────────────────────────────────────────
@@ -123,6 +130,38 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		}
 	};
 
+	// ─── Get free terminals/rooms count and standard price ────────
+	const getFreeCountAndPrice = () => {
+		const vertical = document.getElementById("vertical").value;
+		const plan = getDetectedPlan();
+
+		if (vertical === "DinePro") {
+			if (plan === "elite") {
+				return {
+					count: offerSettings.elite_pos_terminals,
+					price: offerSettings.elite_pos_terminals_price
+				};
+			} else {
+				return {
+					count: offerSettings.base_pos_terminals,
+					price: offerSettings.base_pos_terminals_price
+				};
+			}
+		} else {
+			if (plan === "elite") {
+				return {
+					count: offerSettings.elite_rooms,
+					price: offerSettings.elite_rooms_price
+				};
+			} else {
+				return {
+					count: offerSettings.base_rooms,
+					price: offerSettings.base_rooms_price
+				};
+			}
+		}
+	};
+
 	// ─── Updates the Core card heading and terminal question label ───
 	const updateCoreLabels = () => {
 		const vertical = document.getElementById("vertical").value;
@@ -146,7 +185,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		const billing = document.getElementById("billing").value;
 		const currency = document.getElementById("currency").value;
 		const plan = getDetectedPlan();
-		const terminals = Math.max(1, parseInt(document.getElementById("terminals").value || 1));
+		const terminals = Math.max(0, parseInt(document.getElementById("terminals").value || 0));
 
 		// ── Update plan badge ──────────────────────────────────────
 		const planBadge = document.getElementById("plan-display");
@@ -160,36 +199,38 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 			}
 		}
 
-		const freeTerminals =
-			plan === "elite"
-				? offerSettings.elite_pos_terminals
-				: offerSettings.base_pos_terminals;
+		const freeData = getFreeCountAndPrice();
+		const freeCount = freeData.count;
+		const freeStandardPrice = freeData.price;
 
-		const billable = Math.max(0, terminals - freeTerminals);
+		const billable = Math.max(0, terminals - freeCount);
 		const terminalUnitPrice = getCoreUnitPrice();
 
 		const billingLabel = billing === "annual" ? "year" : "month";
 		document.getElementById("billing-period-core").innerText = billingLabel;
 		document.getElementById("billing-period-total").innerText = billingLabel;
 
-		const corePriceUsd = billable * terminalUnitPrice;
+		// ── Core price: free terminals standard price + billable terminals ──
+		const corePriceUsd = freeStandardPrice + (billable * terminalUnitPrice);
 		const corePriceDisplay = money(corePriceUsd);
 
 		document.getElementById("cur1").innerText = currency;
 		document.getElementById("cur2").innerText = currency;
-		document.getElementById("includedTerminals").innerText = Math.min(terminals, freeTerminals);
+		document.getElementById("includedTerminals").innerText = Math.min(terminals, freeCount);
 		document.getElementById("billableTerminals").innerText = billable;
 		document.getElementById("corePrice").innerText = fmt(corePriceDisplay);
 
 		const checkedItemNames = getCheckedItemNames();
 
-		if (checkedItemNames.length === 0 && corePriceUsd === 0) {
+		if (checkedItemNames.length === 0 && terminals === 0) {
 			document.getElementById("totalPrice").innerText = fmt(0);
+			document.getElementById("price-reason").innerText = "";
 			return;
 		}
 
 		if (checkedItemNames.length === 0) {
 			document.getElementById("totalPrice").innerText = fmt(corePriceDisplay);
+			document.getElementById("price-reason").innerText = "Base on: Core terminals only";
 			return;
 		}
 
@@ -198,17 +239,31 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 			args: {
 				item_names: JSON.stringify(checkedItemNames),
 				billing: billing,
+				terminals: terminals,
+				plan: plan,
+				vertical: document.getElementById("vertical").value,
 			},
 			callback: function (r) {
-				const addonUsd = r.message || 0;
-				const grandTotal = money(addonUsd + corePriceUsd);
-				document.getElementById("totalPrice").innerText = fmt(grandTotal);
+				if (r.message) {
+					const finalTotal = money(r.message.total);
+					document.getElementById("totalPrice").innerText = fmt(finalTotal);
+
+					// ── Determine which condition wins ──────────────────
+					const values = [r.message.first_value, r.message.second_value, r.message.third_value];
+					const winnerIndex = values.indexOf(Math.max(...values));
+					const reasons = [
+						"Sum of terminals + all items",
+						"Highest single item minimum",
+						"Plan minimum commitment"
+					];
+					document.getElementById("price-reason").innerText = `Based on: ${reasons[winnerIndex]}`;
+				}
 			},
 		});
 	};
 
 	const syncTerminals = (val) => {
-		const n = Math.max(1, Math.min(100, parseInt(val || 1)));
+		const n = Math.max(0, Math.min(100, parseInt(val || 0)));
 		document.getElementById("terminals").value = n;
 		document.getElementById("terminalsInput").value = n;
 		updatePrices();
@@ -320,7 +375,6 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 							background: ${planLevel === "elite" ? "#7c3aed" : "#2563eb"};
 							color: #fff;
 						`;
-						// card.appendChild(badge);
 
 						const checkbox = document.createElement("input");
 						checkbox.type = "checkbox";
@@ -426,8 +480,8 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 						How many POS terminals do you need?
 					</label>
 					<div class="terminal-controls">
-						<input type="range" id="terminals" min="1" max="100" value="3" step="1" />
-						<input type="number" id="terminalsInput" min="1" max="100" value="3" step="1" />
+						<input type="range" id="terminals" min="0" max="100" value="0" step="1" />
+						<input type="number" id="terminalsInput" min="0" max="100" value="0" step="1" />
 					</div>
 					<div class="terminal-info">
 						<div><span id="included-label">Included (depends on plan &amp; billing):</span> <span id="includedTerminals" class="highlight"></span></div>
@@ -439,6 +493,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 				<p class="total-price">
 					Total: <span id="totalPrice">0</span> <span id="cur2">USD</span> / <span id="billing-period-total">month</span>
 				</p>
+				<p class="price-reason" id="price-reason"></p>
 				<p style="text-align:center; margin-top:1rem; margin-bottom:1.5rem; font-size:1rem; font-weight:600;">
 					Plan: <span id="plan-display" style="padding: 2px 10px; border-radius: 20px; color:#fff; background:#2563eb;">Base</span>
 				</p>
@@ -521,12 +576,7 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 		const fx_rate = window._fxRate || 1;
 		const currency = document.getElementById("currency").value;
 		const vertical = document.getElementById("vertical").value;
-		const terminals = parseInt(document.getElementById("terminals").value) || 1;
-
-		// if (checkedItemNames.length === 0) {
-		// 	frappe.msgprint("Please select at least one item.");
-		// 	return;
-		// }
+		const terminals = parseInt(document.getElementById("terminals").value) || 0;
 
 		frappe.call({
 			method: "sales_quotation.sales_quotation.page.sales_offer.sales_offer.create_quotation",
@@ -575,18 +625,24 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 				offerSettings.staypro_core_annual_price =
 					parseFloat(r.message.staypro_core_annual_price) || 0;
 				offerSettings.base_pos_terminals = parseInt(r.message.base_pos_terminals) || 0;
+				offerSettings.base_pos_terminals_price = parseFloat(r.message.base_pos_terminals_price) || 0;
 				offerSettings.elite_pos_terminals = parseInt(r.message.elite_pos_terminals) || 0;
+				offerSettings.elite_pos_terminals_price = parseFloat(r.message.elite_pos_terminals_price) || 0;
+				offerSettings.base_rooms = parseInt(r.message.base_rooms) || 0;
+				offerSettings.base_rooms_price = parseFloat(r.message.base_rooms_price) || 0;
+				offerSettings.elite_rooms = parseInt(r.message.elite_rooms) || 0;
+				offerSettings.elite_rooms_price = parseFloat(r.message.elite_rooms_price) || 0;
 			}
 			fetchExchangeRate(() => {
 				buildAddonsUI();
-				syncTerminals(3);
+				syncTerminals(0);
 			});
 		},
 		error: function (err) {
 			console.error("Failed to load Sales Offer Settings:", err);
 			fetchExchangeRate(() => {
 				buildAddonsUI();
-				syncTerminals(3);
+				syncTerminals(0);
 			});
 		},
 	});

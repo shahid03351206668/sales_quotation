@@ -17,8 +17,16 @@
   "staypro_core_annual_price",
   "dinepro_core_monthly_price",
   "dinepro_core_annual_price",
+  "core_section",
+  "base_rooms",
+  "elite_rooms",
+  "base_rooms_price",
+  "elite_rooms_price",
+  "column_break_xvqp",
   "base_pos_terminals",
-  "elite_pos_terminals"
+  "elite_pos_terminals",
+  "base_pos_terminals_price",
+  "elite_pos_terminals_price"
  ],
  "fields": [
   {
@@ -100,14 +108,53 @@
    "fieldtype": "Link",
    "label": "Company",
    "options": "Company"
+  },
+  {
+   "fieldname": "base_rooms",
+   "fieldtype": "Int",
+   "label": "Base Rooms"
+  },
+  {
+   "fieldname": "elite_rooms",
+   "fieldtype": "Int",
+   "label": "Elite Rooms"
+  },
+  {
+   "fieldname": "base_pos_terminals_price",
+   "fieldtype": "Currency",
+   "label": "Base POS Terminals Price"
+  },
+  {
+   "fieldname": "elite_pos_terminals_price",
+   "fieldtype": "Currency",
+   "label": "Elite POS Terminals Price"
+  },
+  {
+   "fieldname": "base_rooms_price",
+   "fieldtype": "Currency",
+   "label": "Base Rooms Price"
+  },
+  {
+   "fieldname": "elite_rooms_price",
+   "fieldtype": "Currency",
+   "label": "Elite Rooms Price"
+  },
+  {
+   "fieldname": "core_section",
+   "fieldtype": "Section Break",
+   "label": "Core"
+  },
+  {
+   "fieldname": "column_break_xvqp",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-03-25 20:23:52.817532",
- "modified_by": "saad@codessoft.com",
+ "modified": "2026-04-08 20:03:27.294095",
+ "modified_by": "Administrator",
  "module": "Sales Quotation",
  "name": "Sales Offer Settings",
  "owner": "Administrator",
