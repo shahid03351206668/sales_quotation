@@ -83,20 +83,21 @@ def create_quotation(fx_rate, currency, vertical, plan, customer, item_names, bi
         core_unit_price_annual  = flt(settings.staypro_core_annual_price)
 
     # ── Get free terminals/rooms count and standard price ─────────
+    is_annual = billing == "annual"
     if vertical == "DinePro":
         if plan == "elite":
             free_count = flt(settings.elite_pos_terminals)
-            free_standard_price = flt(settings.elite_pos_terminals_price)
+            free_standard_price = flt(settings.elite_pos_terminals_price_annual) if is_annual else flt(settings.elite_pos_terminals_price)
         else:
             free_count = flt(settings.base_pos_terminals)
-            free_standard_price = flt(settings.base_pos_terminals_price)
+            free_standard_price = flt(settings.base_pos_terminals_price_annual) if is_annual else flt(settings.base_pos_terminals_price)
     else:  # StayPro
         if plan == "elite":
             free_count = flt(settings.elite_rooms)
-            free_standard_price = flt(settings.elite_rooms_price)
+            free_standard_price = flt(settings.elite_rooms_price_annual) if is_annual else flt(settings.elite_rooms_price)
         else:
             free_count = flt(settings.base_rooms)
-            free_standard_price = flt(settings.base_rooms_price)
+            free_standard_price = flt(settings.base_rooms_price_annual) if is_annual else flt(settings.base_rooms_price)
 
     # ── Calculate billable terminals/rooms ──────────────────────
     billable_terminals = max(0, terminals - free_count)
@@ -212,20 +213,21 @@ def calculate_total(item_names, billing, terminals, plan, vertical):
         core_unit_price_annual  = flt(settings.staypro_core_annual_price)
 
     # ── Get free terminals/rooms count and standard price ─────────
+    is_annual = billing == "annual"
     if vertical == "DinePro":
         if plan == "elite":
             free_count = flt(settings.elite_pos_terminals)
-            free_standard_price = flt(settings.elite_pos_terminals_price)
+            free_standard_price = flt(settings.elite_pos_terminals_price_annual) if is_annual else flt(settings.elite_pos_terminals_price)
         else:
             free_count = flt(settings.base_pos_terminals)
-            free_standard_price = flt(settings.base_pos_terminals_price)
+            free_standard_price = flt(settings.base_pos_terminals_price_annual) if is_annual else flt(settings.base_pos_terminals_price)
     else:  # StayPro
         if plan == "elite":
             free_count = flt(settings.elite_rooms)
-            free_standard_price = flt(settings.elite_rooms_price)
+            free_standard_price = flt(settings.elite_rooms_price_annual) if is_annual else flt(settings.elite_rooms_price)
         else:
             free_count = flt(settings.base_rooms)
-            free_standard_price = flt(settings.base_rooms_price)
+            free_standard_price = flt(settings.base_rooms_price_annual) if is_annual else flt(settings.base_rooms_price)
 
     # ── Calculate billable terminals/rooms ──────────────────────
     billable_terminals = max(0, terminals - free_count)

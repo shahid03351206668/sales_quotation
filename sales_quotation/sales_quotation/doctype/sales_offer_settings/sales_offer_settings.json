@@ -21,12 +21,16 @@
   "base_rooms",
   "elite_rooms",
   "base_rooms_price",
+  "base_rooms_price_annual",
   "elite_rooms_price",
+  "elite_rooms_price_annual",
   "column_break_xvqp",
   "base_pos_terminals",
   "elite_pos_terminals",
   "base_pos_terminals_price",
-  "elite_pos_terminals_price"
+  "base_pos_terminals_price_annual",
+  "elite_pos_terminals_price",
+  "elite_pos_terminals_price_annual"
  ],
  "fields": [
   {
@@ -147,13 +151,32 @@
   {
    "fieldname": "column_break_xvqp",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "base_rooms_price_annual",
+   "fieldtype": "Currency",
+   "label": "Base Rooms Price Annual"
+  },
+  {
+   "fieldname": "elite_rooms_price_annual",
+   "fieldtype": "Currency",
+   "label": "Elite Rooms Price Annual"
+  },
+  {
+   "fieldname": "base_pos_terminals_price_annual",
+   "fieldtype": "Currency",
+   "label": "Base POS Terminals Price Annual"
+  },
+  {
+   "fieldname": "elite_pos_terminals_price_annual",
+   "fieldtype": "Currency",
+   "label": "Elite POS Terminals Price Annual"
   }
  ],
- "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-04-08 20:03:27.294095",
+ "modified": "2026-04-13 04:09:17.807257",
  "modified_by": "Administrator",
  "module": "Sales Quotation",
  "name": "Sales Offer Settings",
@@ -170,8 +193,6 @@
    "write": 1
   }
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

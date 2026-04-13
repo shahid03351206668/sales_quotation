@@ -132,35 +132,45 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 
 	// ─── Get free terminals/rooms count and standard price ────────
 	const getFreeCountAndPrice = () => {
-		const vertical = document.getElementById("vertical").value;
-		const plan = getDetectedPlan();
+	const vertical = document.getElementById("vertical").value;
+	const billing = document.getElementById("billing").value;
+	const plan = getDetectedPlan();
+	const isAnnual = billing === "annual";
 
-		if (vertical === "DinePro") {
-			if (plan === "elite") {
-				return {
-					count: offerSettings.elite_pos_terminals,
-					price: offerSettings.elite_pos_terminals_price
-				};
-			} else {
-				return {
-					count: offerSettings.base_pos_terminals,
-					price: offerSettings.base_pos_terminals_price
-				};
-			}
+	if (vertical === "DinePro") {
+		if (plan === "elite") {
+			return {
+				count: offerSettings.elite_pos_terminals,
+				price: isAnnual
+					? offerSettings.elite_pos_terminals_price_annual
+					: offerSettings.elite_pos_terminals_price
+			};
 		} else {
-			if (plan === "elite") {
-				return {
-					count: offerSettings.elite_rooms,
-					price: offerSettings.elite_rooms_price
-				};
-			} else {
-				return {
-					count: offerSettings.base_rooms,
-					price: offerSettings.base_rooms_price
-				};
-			}
+			return {
+				count: offerSettings.base_pos_terminals,
+				price: isAnnual
+					? offerSettings.base_pos_terminals_price_annual
+					: offerSettings.base_pos_terminals_price
+			};
 		}
-	};
+	} else {
+		if (plan === "elite") {
+			return {
+				count: offerSettings.elite_rooms,
+				price: isAnnual
+					? offerSettings.elite_rooms_price_annual
+					: offerSettings.elite_rooms_price
+			};
+		} else {
+			return {
+				count: offerSettings.base_rooms,
+				price: isAnnual
+					? offerSettings.base_rooms_price_annual
+					: offerSettings.base_rooms_price
+			};
+		}
+	}
+};
 
 	// ─── Updates the Core card heading and terminal question label ───
 	const updateCoreLabels = () => {
@@ -631,7 +641,11 @@ frappe.pages["sales-offer"].on_page_load = function (wrapper) {
 				offerSettings.base_rooms = parseInt(r.message.base_rooms) || 0;
 				offerSettings.base_rooms_price = parseFloat(r.message.base_rooms_price) || 0;
 				offerSettings.elite_rooms = parseInt(r.message.elite_rooms) || 0;
-				offerSettings.elite_rooms_price = parseFloat(r.message.elite_rooms_price) || 0;
+					offerSettings.elite_rooms_price = parseFloat(r.message.elite_rooms_price) || 0;
+					offerSettings.base_rooms_price_annual = parseFloat(r.message.base_rooms_price_annual) || 0;
+					offerSettings.elite_rooms_price_annual = parseFloat(r.message.elite_rooms_price_annual) || 0;
+					offerSettings.base_pos_terminals_price_annual = parseFloat(r.message.base_pos_terminals_price_annual) || 0;
+					offerSettings.elite_pos_terminals_price_annual = parseFloat(r.message.elite_pos_terminals_price_annual) || 0;
 			}
 			fetchExchangeRate(() => {
 				buildAddonsUI();
